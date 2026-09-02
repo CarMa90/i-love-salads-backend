@@ -1,0 +1,28 @@
+{
+  "name": "i-love-salads-backend",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/CarMa90/i-love-salads-backend#readme",
+  "bugs": {
+    "url": "https://github.com/CarMa90/i-love-salads-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarMa90/i-love-salads-backend.git"
+  },
+  "license": "ISC",
+  "author": "CarMa90",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

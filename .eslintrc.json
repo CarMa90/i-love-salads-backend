@@ -1,0 +1,17 @@
+{
+  "extends": ["airbnb-base", "prettier"],
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-underscore-dangle": "off",
+    "consistent-return": "off",
+    "arrow-body-style": "off",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "next" }]
+  }
+}
