@@ -66,6 +66,37 @@ const userRegisterValidator = celebrate({
     .unknown(true),
 });
 
+const userLoginValidator = celebrate({
+  body: Joi.object().keys({
+    email: Joi.string()
+      .required()
+      .custom((value, helpers) => {
+        if (!validator.isEmail(value)) {
+          return helpers.error("any.email");
+        }
+        return value;
+      })
+      .email()
+      .messages({
+        "string.empty": "El email es obligatorio",
+        "any.required": "El email es obligatorio",
+        "any.email": "El formato de email no es válido",
+        "string.email": "El formato de email es incorrecto",
+      }),
+    password: Joi.string()
+      .required()
+      .min(8)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/)
+      .messages({
+        "string.empty": "El password es obligatorio",
+        "string.min": "El password debe tener al menos 8 caracteres",
+        "string.pattern.base":
+          "El password debe contener al menos una mayúscula, una minúscula, un número y un caracter especial",
+        "any.required": "El password es obligatorio",
+      }),
+  }),
+});
+
 const userIdValidator = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
     userId: Joi.string()
@@ -78,4 +109,4 @@ const userIdValidator = celebrate({
   }),
 });
 
-module.exports = { userRegisterValidator, userIdValidator };
+module.exports = { userRegisterValidator, userLoginValidator, userIdValidator };

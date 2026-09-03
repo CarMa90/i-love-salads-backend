@@ -1,9 +1,12 @@
 const express = require("express");
 const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
-const { createUser } = require("./controllers/users");
+const { createUser, login } = require("./controllers/users");
 const usersRoutes = require("./routes/users");
-const { userRegisterValidator } = require("./middlewares/userValidations");
+const {
+  userRegisterValidator,
+  userLoginValidator,
+} = require("./middlewares/userValidations");
 
 const app = express();
 
@@ -17,6 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.post("/signup", userRegisterValidator, createUser);
+app.post("/signin", userLoginValidator, login);
 
 app.use("/users", usersRoutes);
 
@@ -28,9 +32,6 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.log("ERROR COMPLETO:");
-  console.log(err);
-
   if (isCelebrateError(err)) {
     const params = err.details.get("params");
 

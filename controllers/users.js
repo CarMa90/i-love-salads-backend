@@ -1,7 +1,12 @@
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const BadRequestError = require("../errors/bad-request-err");
 const ConflictError = require("../errors/conflict-err");
+const UnauthorizedError = require("../errors/unauthorized-err");
+require("dotenv").config();
+
+const { NODE_ENV, JWT_SECRET } = process.env;
 
 module.exports.getUsers = (req, res, next) => {
   User.find({})
@@ -69,5 +74,22 @@ module.exports.createUser = (req, res, next) => {
         return next(new ConflictError(err.message));
       }
       return next(err);
+    });
+};
+
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign(
+        { _id: user._id.toString() },
+        NODE_ENV === "production" ? JWT_SECRET : "dev-secret",
+        { expiresIn: "15d" },
+      );
+      return res.status(200).send({ token });
+    })
+    .catch(() => {
+      return next(new UnauthorizedError("Verifique el email o contraseña"));
     });
 };
