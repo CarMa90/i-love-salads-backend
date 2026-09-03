@@ -5,12 +5,10 @@ const userRegisterValidator = celebrate({
   body: Joi.object()
     .keys({
       name: Joi.string().required().min(2).max(30).messages({
-        "any.required": "El nombre es obligatorio (celebrate)",
-        "string.empty": "El nombre es obligatorio (celebrate)",
-        "string.min":
-          "El nombre debe contener al menos dos caracteres (celebrate)",
-        "string.max":
-          "El nombre debe contener máximo 30 caracteres (celebrate)",
+        "any.required": "El nombre es obligatorio",
+        "string.empty": "El nombre es obligatorio",
+        "string.min": "El nombre debe contener al menos dos caracteres",
+        "string.max": "El nombre debe contener máximo 30 caracteres",
       }),
       email: Joi.string()
         .required()
