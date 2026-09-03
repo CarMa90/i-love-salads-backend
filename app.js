@@ -3,6 +3,7 @@ const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
 const { createUser } = require("./controllers/users");
 const usersRoutes = require("./routes/users");
+const { userRegisterValidator } = require("./middlewares/userValidations");
 
 const app = express();
 
@@ -15,7 +16,7 @@ const { PORT = 3000 } = process.env;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post("/signup", createUser);
+app.post("/signup", userRegisterValidator, createUser);
 
 app.use("/users", usersRoutes);
 
