@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema(
       maxlength: [30, "El nombre debe contener máximo 30 caracteres"],
     },
     mobile: {
-      contryCode: {
+      countryCode: {
         type: String,
         required: [true, "El código de país es requerido"],
         validate: {

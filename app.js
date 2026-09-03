@@ -1,10 +1,30 @@
 const express = require("express");
 const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
+const { createUser } = require("./controllers/users");
+const usersRoutes = require("./routes/users");
 
 const app = express();
 
+mongoose
+  .connect("mongodb://localhost:27017/ilovesalads")
+  .catch((err) => console.error("Error de conexión a MongoDB:", err));
+
 const { PORT = 3000 } = process.env;
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.post("/signup", createUser);
+
+app.use("/users", usersRoutes);
+
+app.use((req, res) => {
+  res.status(404).send({
+    message:
+      "Recurso solicitado no encontrado desde el backend de I Love Salads",
+  });
+});
 
 app.use((err, req, res, next) => {
   console.log("ERROR COMPLETO:");
