@@ -3,6 +3,7 @@ const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
 const { createUser, login } = require("./controllers/users");
 const usersRoutes = require("./routes/users");
+const ordersRoutes = require("./routes/orders");
 const {
   userRegisterValidator,
   userLoginValidator,
@@ -23,6 +24,7 @@ app.post("/signup", userRegisterValidator, createUser);
 app.post("/signin", userLoginValidator, login);
 
 app.use("/users", usersRoutes);
+app.use("/orders", ordersRoutes);
 
 app.use((req, res) => {
   res.status(404).send({
