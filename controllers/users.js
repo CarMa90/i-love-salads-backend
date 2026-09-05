@@ -14,6 +14,18 @@ module.exports.getUsers = (req, res, next) => {
     .catch((err) => next(err));
 };
 
+module.exports.getUserInfo = (req, res, next) => {
+  const { _id } = req.user;
+
+  User.findById(_id)
+    .then((user) => res.send({ data: user }))
+    .catch(() => {
+      return next(
+        new NotFoundError("No se encontró ningún usuario con ese ID"),
+      );
+    });
+};
+
 module.exports.createUser = (req, res, next) => {
   const { email, password, name, userType, mobile } = req.body;
 
@@ -83,7 +95,7 @@ module.exports.login = (req, res, next) => {
   return User.findUserByCredentials(email, password)
     .then((user) => {
       const token = jwt.sign(
-        { _id: user._id.toString() },
+        { _id: user._id.toString(), userType: user.userType },
         NODE_ENV === "production" ? JWT_SECRET : "dev-secret",
         { expiresIn: "15d" },
       );

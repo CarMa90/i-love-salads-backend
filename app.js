@@ -8,7 +8,7 @@ const {
   userRegisterValidator,
   userLoginValidator,
 } = require("./middlewares/userValidations");
-const auth = require("./middlewares/auth");
+const { auth } = require("./middlewares/auth");
 
 const app = express();
 
