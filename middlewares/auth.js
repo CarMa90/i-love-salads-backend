@@ -49,14 +49,14 @@ module.exports.adminAuth = (req, res, next) => {
 };
 
 module.exports.adminRestaurantAuth = (req, res, next) => {
-  console.log(req.user);
   if (!req.user) {
     return next(
       new ForbiddenError("Acceso no autorizado: Usuario no identificado"),
     );
   }
 
-  if (req.user.userType !== "admin" || req.user.userType !== "restaurant") {
+  const allowedTypes = ["admin", "restaurant"];
+  if (!allowedTypes.includes(req.user.userType)) {
     return next(
       new ForbiddenError(
         "Acceso denegado: Se requieren permisos de administrador o restaurante",

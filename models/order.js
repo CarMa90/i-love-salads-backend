@@ -33,7 +33,10 @@ const orderSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["Enviado", "Cancelado", "Aceptado", "Listo", "Entregado"],
+      enum: {
+        values: ["Enviado", "Cancelado", "Aceptado", "Listo", "Entregado"],
+        message: "{VALUE} no es un estado válido",
+      },
       default: "Enviado",
       required: [true, "El status de la orden es requerido"],
     },

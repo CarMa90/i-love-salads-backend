@@ -1,6 +1,7 @@
 const Order = require("../models/order");
 const BadRequestError = require("../errors/bad-request-err");
 const UnauthorizedError = require("../errors/unauthorized-err");
+const NotFoundError = require("../errors/not-found-err");
 
 module.exports.getOrders = (req, res, next) => {
   Order.find({})
@@ -48,6 +49,41 @@ module.exports.createOrder = (req, res, next) => {
       if (err.name === "ValidationError") {
         return next(new BadRequestError(err.message));
       }
+      return next(err);
+    });
+};
+
+module.exports.changeOrderStatus = (req, res, next) => {
+  const { status } = req.body;
+  Order.findByIdAndUpdate(
+    req.params.orderId,
+    { status },
+    { returnDocument: "after", runValidators: true },
+  )
+    .orFail(() => {
+      const error = new NotFoundError(
+        `La orden con id: ${req.params.orderId} no existe`,
+      );
+      throw error;
+    })
+    .then((order) => {
+      return res.status(200).send({ data: order });
+    })
+    .catch((err) => {
+      if (err.name === "CastError") {
+        return next(
+          new BadRequestError(`El id: ${req.params.orderId} no es válido`),
+        );
+      }
+
+      if (err.name === "ValidationError") {
+        const validationMessage = err.errors.status
+          ? err.errors.status.message
+          : "Error de validación";
+
+        return next(new BadRequestError(validationMessage));
+      }
+
       return next(err);
     });
 };
