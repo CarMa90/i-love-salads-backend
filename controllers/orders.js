@@ -55,8 +55,8 @@ module.exports.createOrder = (req, res, next) => {
 
 module.exports.changeOrderStatus = (req, res, next) => {
   const { status } = req.body;
-  Order.findByIdAndUpdate(
-    req.params.orderId,
+  Order.findOneAndUpdate(
+    { _id: req.params.orderId, status: { $ne: "Cancelado" } },
     { status },
     { returnDocument: "after", runValidators: true },
   )
