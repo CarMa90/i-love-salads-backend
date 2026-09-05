@@ -55,6 +55,15 @@ module.exports.createOrder = (req, res, next) => {
 
 module.exports.changeOrderStatus = (req, res, next) => {
   const { status } = req.body;
+
+  if (status === "Cancelado") {
+    return next(
+      new BadRequestError(
+        "No se puede cambiar el estado de la orden a 'Cancelado' mediante esta ruta",
+      ),
+    );
+  }
+
   Order.findOneAndUpdate(
     { _id: req.params.orderId, status: { $ne: "Cancelado" } },
     { status },
@@ -87,3 +96,5 @@ module.exports.changeOrderStatus = (req, res, next) => {
       return next(err);
     });
 };
+
+module.exports.cancelOrder = (req, res, next) => {};
