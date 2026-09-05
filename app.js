@@ -8,6 +8,7 @@ const {
   userRegisterValidator,
   userLoginValidator,
 } = require("./middlewares/userValidations");
+const auth = require("./middlewares/auth");
 
 const app = express();
 
@@ -22,6 +23,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.post("/signup", userRegisterValidator, createUser);
 app.post("/signin", userLoginValidator, login);
+
+app.use(auth);
 
 app.use("/users", usersRoutes);
 app.use("/orders", ordersRoutes);

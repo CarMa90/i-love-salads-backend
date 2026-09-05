@@ -1,5 +1,6 @@
 const { required } = require("joi");
 const mongoose = require("mongoose");
+const Counter = require("./counter");
 
 const orderSchema = new mongoose.Schema(
   {
@@ -58,5 +59,23 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+orderSchema.pre("save", async function () {
+  if (!this.isNew) {
+    return;
+  }
+
+  try {
+    const counter = await Counter.findOneAndUpdate(
+      { id: "orderNumber" },
+      { $inc: { seq: 1 } },
+      { returnDocument: "after", upsert: true },
+    );
+
+    this.orderNumber = counter.seq;
+  } catch (err) {
+    throw err;
+  }
+});
 
 module.exports = mongoose.model("Order", orderSchema);
