@@ -4,7 +4,20 @@ const UnauthorizedError = require("../errors/unauthorized-err");
 
 module.exports.getOrders = (req, res, next) => {
   Order.find({})
-    .then((orders) => res.send({ data: orders }))
+    .then((orders) => {
+      if (req.user.userType === "client") {
+        console.log(req.user._id);
+        const clientOrders = orders.filter(
+          (order) => order.client.toString() === req.user._id,
+        );
+        return res.send({
+          data: clientOrders,
+        });
+      }
+      if (req.user.userType === "admin" || req.user.userType === "restaurant") {
+        return res.send({ data: orders });
+      }
+    })
     .catch((err) => next(err));
 };
 

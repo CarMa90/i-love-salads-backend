@@ -2,7 +2,7 @@ const router = require("express").Router();
 const { getOrders, createOrder } = require("../controllers/orders");
 const { adminAuth } = require("../middlewares/auth");
 
-router.get("/", adminAuth, getOrders);
+router.get("/", getOrders);
 
 router.post("/", createOrder);
 
