@@ -1,4 +1,7 @@
 const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const { limiter, loginLimiter } = require("./middlewares/limiter");
 const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
 const { createUser, login } = require("./controllers/users");
@@ -13,19 +16,25 @@ const { requestLogger, errorLogger } = require("./middlewares/logger");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
+app.use(requestLogger);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(cors());
+app.use(helmet());
+app.use(limiter);
+
 mongoose
   .connect("mongodb://localhost:27017/ilovesalads")
   .catch((err) => console.error("Error de conexión a MongoDB:", err));
 
 const { PORT = 3000 } = process.env;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.use(requestLogger);
-
 app.post("/signup", userRegisterValidator, createUser);
-app.post("/signin", userLoginValidator, login);
+app.post("/signin", loginLimiter, userLoginValidator, login);
 
 app.use(auth);
 
