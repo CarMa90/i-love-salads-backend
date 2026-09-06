@@ -30,7 +30,6 @@ module.exports.auth = (req, res, next) => {
 };
 
 module.exports.adminAuth = (req, res, next) => {
-  console.log(req.user);
   if (!req.user) {
     return next(
       new ForbiddenError("Acceso no autorizado: Usuario no identificado"),

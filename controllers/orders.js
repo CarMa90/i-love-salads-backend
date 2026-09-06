@@ -56,6 +56,12 @@ module.exports.createOrder = (req, res, next) => {
 module.exports.changeOrderStatus = (req, res, next) => {
   const { status } = req.body;
 
+  if (!status) {
+    return next(
+      new BadRequestError("Debes agregar un cambio de status para el pedido"),
+    );
+  }
+
   if (status === "Cancelado") {
     return next(
       new BadRequestError(
@@ -97,4 +103,42 @@ module.exports.changeOrderStatus = (req, res, next) => {
     });
 };
 
-module.exports.cancelOrder = (req, res, next) => {};
+module.exports.cancelOrder = (req, res, next) => {
+  const { message } = req.body;
+
+  if (!message) {
+    return next(new BadRequestError("Debes agregar un mensaje de error"));
+  }
+
+  Order.findOneAndUpdate(
+    { _id: req.params.orderId, status: { $ne: "Cancelado" } },
+    { status: "Cancelado", cancelMessage: message },
+    { returnDocument: "after", runValidators: true },
+  )
+    .orFail(() => {
+      const error = new NotFoundError(
+        `La orden con id: ${req.params.orderId} no existe`,
+      );
+      throw error;
+    })
+    .then((order) => {
+      return res.status(200).send({ data: order });
+    })
+    .catch((err) => {
+      if (err.name === "CastError") {
+        return next(
+          new BadRequestError(`El id: ${req.params.orderId} no es válido`),
+        );
+      }
+
+      if (err.name === "ValidationError") {
+        const validationMessage = err.errors.status
+          ? err.errors.status.message
+          : "Error de validación";
+
+        return next(new BadRequestError(validationMessage));
+      }
+
+      return next(err);
+    });
+};
