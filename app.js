@@ -9,6 +9,7 @@ const {
   userLoginValidator,
 } = require("./middlewares/userValidations");
 const { auth } = require("./middlewares/auth");
+const { requestLogger, errorLogger } = require("./middlewares/logger");
 
 const app = express();
 
@@ -20,6 +21,8 @@ const { PORT = 3000 } = process.env;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(requestLogger);
 
 app.post("/signup", userRegisterValidator, createUser);
 app.post("/signin", userLoginValidator, login);
@@ -35,6 +38,8 @@ app.use((req, res) => {
       "Recurso solicitado no encontrado desde el backend de I Love Salads",
   });
 });
+
+app.use(errorLogger);
 
 app.use((err, req, res, next) => {
   if (isCelebrateError(err)) {
