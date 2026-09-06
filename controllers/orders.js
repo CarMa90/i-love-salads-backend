@@ -7,7 +7,6 @@ module.exports.getOrders = (req, res, next) => {
   Order.find({})
     .then((orders) => {
       if (req.user.userType === "client") {
-        console.log(req.user._id);
         const clientOrders = orders.filter(
           (order) => order.client.toString() === req.user._id,
         );
@@ -37,9 +36,11 @@ module.exports.createOrder = (req, res, next) => {
     );
   }
 
-  const totalAmount = products.reduce((acumulador, valorActual) => {
-    return (acumulador += valorActual.price * valorActual.quantity);
-  }, 0);
+  const totalAmount = products.reduce(
+    (acumulador, valorActual) =>
+      acumulador + valorActual.price * valorActual.quantity,
+    0,
+  );
 
   Order.create({ client: req.user._id, products, totalAmount })
     .then((order) => {
@@ -170,12 +171,21 @@ module.exports.cancelAcceptance = (req, res, next) => {
       }
 
       if (err.name === "ValidationError") {
+        let validationMessage = "Error de validación";
+
+        if (err.errors.cancelAcceptance) {
+          validationMessage = err.errors.cancelAcceptance.message;
+        } else if (err.errors.status) {
+          validationMessage = err.errors.status.message;
+        }
+
+        /*
         const validationMessage = err.errors.cancelAcceptance
           ? err.errors.cancelAcceptance.message
           : err.errors.status
             ? err.errors.status.message
             : "Error de validación";
-
+        */
         return next(new BadRequestError(validationMessage));
       }
 

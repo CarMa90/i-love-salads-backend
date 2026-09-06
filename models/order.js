@@ -1,4 +1,3 @@
-const { required } = require("joi");
 const mongoose = require("mongoose");
 const Counter = require("./counter");
 
@@ -63,22 +62,18 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-orderSchema.pre("save", async function () {
+orderSchema.pre("save", async function assignOrderNumber() {
   if (!this.isNew) {
     return;
   }
 
-  try {
-    const counter = await Counter.findOneAndUpdate(
-      { id: "orderNumber" },
-      { $inc: { seq: 1 } },
-      { returnDocument: "after", upsert: true },
-    );
+  const counter = await Counter.findOneAndUpdate(
+    { id: "orderNumber" },
+    { $inc: { seq: 1 } },
+    { returnDocument: "after", upsert: true },
+  );
 
-    this.orderNumber = counter.seq;
-  } catch (err) {
-    throw err;
-  }
+  this.orderNumber = counter.seq;
 });
 
 module.exports = mongoose.model("Order", orderSchema);
