@@ -1,5 +1,4 @@
 const { celebrate, Joi, Segments } = require("celebrate");
-const validator = require("validator");
 
 const orderIdValidator = celebrate({
   [Segments.PARAMS]: Joi.object().keys({
