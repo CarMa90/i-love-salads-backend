@@ -142,3 +142,43 @@ module.exports.cancelOrder = (req, res, next) => {
       return next(err);
     });
 };
+
+module.exports.cancelAcceptance = (req, res, next) => {
+  Order.findOneAndUpdate(
+    {
+      _id: req.params.orderId,
+      client: req.user._id,
+      cancelAcceptance: { $ne: true },
+    },
+    { cancelAcceptance: true },
+    { returnDocument: "after", runValidators: true },
+  )
+    .orFail(() => {
+      const error = new NotFoundError(
+        `La orden con id: ${req.params.orderId} no existe, no tienes permisos o la cancelación ya había sido aceptada`,
+      );
+      throw error;
+    })
+    .then((order) => {
+      return res.status(200).send({ data: order });
+    })
+    .catch((err) => {
+      if (err.name === "CastError") {
+        return next(
+          new BadRequestError(`El id: ${req.params.orderId} no es válido`),
+        );
+      }
+
+      if (err.name === "ValidationError") {
+        const validationMessage = err.errors.cancelAcceptance
+          ? err.errors.cancelAcceptance.message
+          : err.errors.status
+            ? err.errors.status.message
+            : "Error de validación";
+
+        return next(new BadRequestError(validationMessage));
+      }
+
+      return next(err);
+    });
+};
