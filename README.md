@@ -60,6 +60,8 @@ npm start
 
 La API estará disponible en `http://localhost:3000`.
 
+Base de la API en producción: `https://api.ilovesalads.heise.cl`
+
 ## Autenticación y roles
 
 Las rutas protegidas requieren el siguiente encabezado:
