@@ -13,6 +13,7 @@ const {
 } = require("./middlewares/userValidations");
 const { auth } = require("./middlewares/auth");
 const { requestLogger, errorLogger } = require("./middlewares/logger");
+require("dotenv").config();
 
 const app = express();
 
@@ -27,8 +28,13 @@ app.use(cors());
 app.use(helmet());
 app.use(limiter);
 
+const { NODE_ENV, DB_URL } = process.env;
+
+const dbUrl =
+  NODE_ENV === "production" ? DB_URL : "mongodb://localhost:27017/ilovesalads";
+
 mongoose
-  .connect("mongodb://localhost:27017/ilovesalads")
+  .connect(dbUrl)
   .catch((err) => console.error("Error de conexión a MongoDB:", err));
 
 const { PORT = 3000 } = process.env;
