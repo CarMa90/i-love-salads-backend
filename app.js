@@ -1,9 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const { limiter, loginLimiter } = require("./middlewares/limiter");
 const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
+const { limiter, loginLimiter } = require("./middlewares/limiter");
 const { createUser, login } = require("./controllers/users");
 const usersRoutes = require("./routes/users");
 const ordersRoutes = require("./routes/orders");
