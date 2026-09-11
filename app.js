@@ -1,17 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const { isCelebrateError } = require("celebrate");
 const mongoose = require("mongoose");
-const { limiter, loginLimiter } = require("./middlewares/limiter");
-const { createUser, login } = require("./controllers/users");
-const usersRoutes = require("./routes/users");
-const ordersRoutes = require("./routes/orders");
-const {
-  userRegisterValidator,
-  userLoginValidator,
-} = require("./middlewares/userValidations");
-const { auth } = require("./middlewares/auth");
+const errorHandler = require("./middlewares/errorHandler");
+const { limiter } = require("./middlewares/limiter");
+const routes = require("./routes/index");
 const { requestLogger, errorLogger } = require("./middlewares/logger");
 require("dotenv").config();
 
@@ -39,13 +32,7 @@ mongoose
 
 const { PORT = 3000 } = process.env;
 
-app.post("/signup", userRegisterValidator, createUser);
-app.post("/signin", loginLimiter, userLoginValidator, login);
-
-app.use(auth);
-
-app.use("/users", usersRoutes);
-app.use("/orders", ordersRoutes);
+app.use("/", routes);
 
 app.use((req, res) => {
   res.status(404).send({
@@ -56,32 +43,7 @@ app.use((req, res) => {
 
 app.use(errorLogger);
 
-app.use((err, req, res, next) => {
-  if (isCelebrateError(err)) {
-    const params = err.details.get("params");
-
-    if (params) {
-      return res.status(400).send({
-        message: params.details[0].message,
-      });
-    }
-
-    const body = err.details.get("body");
-
-    if (body) {
-      return res.status(400).send({
-        message: body.details[0].message,
-      });
-    }
-  }
-
-  const { statusCode = 500, message } = err;
-
-  return res.status(statusCode).send({
-    message:
-      statusCode === 500 ? "An error has ocurred on the server" : message,
-  });
-});
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
