@@ -5,6 +5,7 @@ const NotFoundError = require("../errors/not-found-err");
 
 module.exports.getOrders = (req, res, next) => {
   Order.find({})
+    .populate("client", "name email mobile userType")
     .then((orders) => {
       if (req.user.userType === "client") {
         const clientOrders = orders.filter(
