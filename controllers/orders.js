@@ -180,13 +180,6 @@ module.exports.cancelAcceptance = (req, res, next) => {
           validationMessage = err.errors.status.message;
         }
 
-        /*
-        const validationMessage = err.errors.cancelAcceptance
-          ? err.errors.cancelAcceptance.message
-          : err.errors.status
-            ? err.errors.status.message
-            : "Error de validación";
-        */
         return next(new BadRequestError(validationMessage));
       }
 
