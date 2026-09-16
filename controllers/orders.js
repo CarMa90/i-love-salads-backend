@@ -9,7 +9,7 @@ module.exports.getOrders = (req, res, next) => {
     .then((orders) => {
       if (req.user.userType === "client") {
         const clientOrders = orders.filter(
-          (order) => order.client.toString() === req.user._id,
+          (order) => order.client._id.toString() === req.user._id,
         );
         return res.send({
           data: clientOrders,
