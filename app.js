@@ -18,10 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const corsOptions = {
-  origin: [
-    "https://ilovesalads.heise.cl/",
-    "https://www.ilovesalads.heise.cl/",
-  ],
+  origin: ["https://ilovesalads.heise.cl", "https://www.ilovesalads.heise.cl"],
 };
 
 app.use(cors(corsOptions));
