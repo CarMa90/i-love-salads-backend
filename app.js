@@ -17,7 +17,14 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors());
+const corsOptions = {
+  origin: [
+    "https://ilovesalads.heise.cl/",
+    "https://www.ilovesalads.heise.cl/",
+  ],
+};
+
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(limiter);
 
