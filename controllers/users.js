@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const BadRequestError = require("../errors/bad-request-err");
@@ -28,7 +29,15 @@ module.exports.getUserInfo = (req, res, next) => {
 };
 
 module.exports.createUser = (req, res, next) => {
-  const { email, password, name, userType, mobile } = req.body;
+  const { email, password, name, userType = "client", mobile } = req.body;
+
+  if (userType === "restaurant") {
+    return next(
+      new BadRequestError(
+        "Los usuarios de sucursal deben ser creados por un administrador",
+      ),
+    );
+  }
 
   if (!password) {
     return next(new BadRequestError("El password es obligatorio"));
@@ -40,9 +49,9 @@ module.exports.createUser = (req, res, next) => {
     );
   }
 
-  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
-  if (!regex.test(password)) {
+  if (!passwordRegex.test(password)) {
     return next(
       new BadRequestError(
         "El password debe contener al menos una mayúscula, una minúscula, un número y un caracter especial",
@@ -50,29 +59,72 @@ module.exports.createUser = (req, res, next) => {
     );
   }
 
-  if (!mobile) {
-    return next(new BadRequestError("El celular es obligatorio"));
+  if (!mobile || !mobile.phone || !mobile.countryCode) {
+    return next(
+      new BadRequestError(
+        "El número de celular y el código de país son obligatorios",
+      ),
+    );
+  }
+
+  const phoneOtp = crypto.randomInt(100000, 999999).toString();
+  const tokenExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+  let emailOtp = null;
+
+  if (userType === "admin") {
+    if (!email) {
+      return next(
+        new BadRequestError(
+          "El email es obligatorio para registrar un restaurante",
+        ),
+      );
+    }
+    emailOtp = crypto.randomInt(100000, 999999).toString();
   }
 
   bcrypt
     .hash(password, 10)
     .then((hash) => {
-      return User.create({
-        email,
+      const userPayload = {
         name,
-        userType,
-        mobile,
         password: hash,
-      });
+        userType,
+        mobile: {
+          countryCode: mobile.countryCode,
+          phone: mobile.phone,
+        },
+        phoneVerificationToken: phoneOtp,
+        phoneTokenExpires: tokenExpires,
+        isPhoneVerified: false,
+      };
+
+      if (userType === "admin") {
+        userPayload.email = email;
+        userPayload.emailVerificationToken = emailOtp;
+        userPayload.emailTokenExpires = tokenExpires;
+        userPayload.isEmailVerified = false;
+      }
+
+      return User.create(userPayload);
     })
     .then((user) => {
-      return res.send({
+      console.log(`[SMS OTP enviado a ${user.mobile.phone}]: ${phoneOtp}`);
+      if (user.userType === "admin") {
+        console.log(`[Email OTP enviado a ${user.email}]: ${emailOtp}`);
+      }
+
+      return res.status(201).send({
         data: {
-          email: user.email,
+          email: user.email || null,
           name: user.name,
           userType: user.userType,
           mobile: user.mobile,
         },
+        message:
+          user.userType === "admin"
+            ? "Registro inicial correcto. Revisa tu SMS y tu Correo para validar tu cuenta."
+            : "Registro inicial correcto. Revisa tu SMS para validar tu cuenta.",
       });
     })
     .catch((err) => {
@@ -83,8 +135,19 @@ module.exports.createUser = (req, res, next) => {
 
         return next(new BadRequestError(message));
       }
-      if (err.cause?.code === 11000) {
-        return next(new ConflictError(err.message));
+      if (err.code === 11000 || err.cause?.code === 11000) {
+        const conflictString = JSON.stringify(err.keyValue || "");
+        let customMessage = "Este registro ya existe en el sistema.";
+
+        if (conflictString.includes("phone")) {
+          customMessage =
+            "Este número de teléfono ya está registrado con otra cuenta.";
+        } else if (conflictString.includes("email")) {
+          customMessage =
+            "Este correo electrónico ya está siendo usado por otro administrador.";
+        }
+
+        return next(new ConflictError(customMessage));
       }
       return next(err);
     });

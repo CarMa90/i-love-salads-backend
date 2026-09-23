@@ -11,7 +11,6 @@ const userRegisterValidator = celebrate({
         "string.max": "El nombre debe contener máximo 30 caracteres",
       }),
       email: Joi.string()
-        .required()
         .custom((value, helpers) => {
           if (!validator.isEmail(value)) {
             return helpers.error("any.email");
@@ -19,6 +18,11 @@ const userRegisterValidator = celebrate({
           return value;
         })
         .email()
+        .when("userType", {
+          is: "admin",
+          then: Joi.required(),
+          otherwise: Joi.optional().allow(null, ""),
+        })
         .messages({
           "string.empty": "El email es obligatorio",
           "any.required": "El email es obligatorio",
@@ -39,17 +43,24 @@ const userRegisterValidator = celebrate({
       mobile: Joi.object()
         .keys({
           countryCode: Joi.string()
-            .required()
             .pattern(/^\+\d{1,3}$/)
+            .when("...userType", {
+              is: "restaurant",
+              then: Joi.optional().allow(null, ""),
+              otherwise: Joi.required(),
+            })
             .messages({
               "any.required": "El código de país es requerido",
               "string.empty": "El código de país es requerido",
               "string.pattern.base": "El código de país es incorrecto",
             }),
-
           phone: Joi.string()
-            .required()
             .pattern(/^\d{6,14}$/)
+            .when("...userType", {
+              is: "restaurant",
+              then: Joi.optional().allow(null, ""),
+              otherwise: Joi.required(),
+            })
             .messages({
               "any.required": "El teléfono es requerido",
               "string.empty": "El teléfono es requerido",
