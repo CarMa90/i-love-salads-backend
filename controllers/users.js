@@ -8,6 +8,7 @@ const UnauthorizedError = require("../errors/unauthorized-err");
 const NotFoundError = require("../errors/not-found-err");
 require("dotenv").config();
 const { sendVerificationSms } = require("../services/smsService");
+const { sendVerificationEmail } = require("../services/emailService");
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
@@ -123,11 +124,10 @@ module.exports.createUser = (req, res, next) => {
       );
 
       // 2. Si es admin, disparamos también el correo electrónico
-      /*
+
       if (user.userType === "admin") {
         trackingPromises.push(sendVerificationEmail(user.email, emailOtp));
       }
-      */
 
       // Esperamos a que los servicios procesen (ya sea simulación o real)
       return Promise.all(trackingPromises).then(() => user);
