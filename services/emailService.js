@@ -1,16 +1,17 @@
 require("dotenv").config();
 const nodemailer = require("nodemailer");
 
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, BUSINESS_NAME } =
+  process.env;
 
 module.exports.sendVerificationEmail = async function sendVerificationEmail(
   email,
   otpCode,
 ) {
-  const subjectText = "Verifica tu cuenta - I Love Salads";
+  const subjectText = `Verifica tu cuenta - ${BUSINESS_NAME}`;
   const htmlContent = `
-    <div style="font-family: sans-serif; max-w: 500px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
-      <h1 style="color: #0f172a; font-size: 22px;">¡Bienvenido a la familia I Love Salads!</h1>
+    <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
+      <h1 style="color: #0f172a; font-size: 22px;">¡Bienvenido a la familia ${BUSINESS_NAME}!</h1>
       <p style="color: #475569; font-size: 14px; line-height: 1.5;">
         Para activar tu cuenta de administrador y comenzar a configurar tu menú y tus sucursales, ingresa el siguiente código de verificación en la aplicación:
       </p>
@@ -32,7 +33,7 @@ module.exports.sendVerificationEmail = async function sendVerificationEmail(
   });
 
   transporter.sendMail({
-    from: `"I Love Salads" <${EMAIL_USER}>`,
+    from: `"${BUSINESS_NAME}" <${EMAIL_USER}>`,
     to: email,
     subject: subjectText,
     html: htmlContent,

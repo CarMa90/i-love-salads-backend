@@ -174,7 +174,6 @@ module.exports.createUser = (req, res, next) => {
 
 module.exports.verifyAcount = (req, res, next) => {
   const { loginIdentifier, otpCode } = req.body;
-  // console.log(loginIdentifier);
 
   if (!loginIdentifier || !otpCode) {
     return next(
@@ -306,16 +305,68 @@ module.exports.verifyAcount = (req, res, next) => {
 };
 
 module.exports.login = (req, res, next) => {
-  const { email, password } = req.body;
+  const { loginIdentifier, password } = req.body;
 
-  return User.findUserByCredentials(email, password)
+  if (!loginIdentifier || !password) {
+    return next(
+      new BadRequestError("El identificador y el password son obligatorios"),
+    );
+  }
+
+  return User.findUserByCredentials(loginIdentifier, password)
     .then((user) => {
+      if (user.userType === "client" && !user.isPhoneVerified) {
+        return next(
+          new UnauthorizedError(
+            "Por favor, verifica tu número de teléfono celular para poder ingresar",
+          ),
+        );
+      }
+
+      if (user.userType === "admin") {
+        if (!user.isPhoneVerified && !user.isEmailVerified) {
+          return next(
+            new UnauthorizedError(
+              "Tu cuenta de administrador requiere verificar tu celular y tu correo electrónico",
+            ),
+          );
+        }
+        if (!user.isPhoneVerified) {
+          return next(
+            new UnauthorizedError(
+              "Aún no has verificado tu número de teléfono celular",
+            ),
+          );
+        }
+        if (!user.isEmailVerified) {
+          return next(
+            new UnauthorizedError(
+              "Aún no has verificado tu correo electrónico corporativo",
+            ),
+          );
+        }
+      }
+
       const token = jwt.sign(
-        { _id: user._id.toString(), userType: user.userType },
+        {
+          _id: user._id.toString(),
+          userType: user.userType,
+          branchId: user.branchId || null,
+        },
         NODE_ENV === "production" ? JWT_SECRET : "dev-secret",
         { expiresIn: "7d" },
       );
-      return res.status(200).send({ token });
+      return res.status(200).send({
+        data: {
+          name: user.name,
+          userType: user.userType,
+          email: user.email || null,
+          mobile: user.mobile || null,
+          username: user.username || null,
+        },
+        token,
+        message: "Inicio de sesión exitoso. ¡Bienvenido!",
+      });
     })
     .catch(() => {
       return next(new UnauthorizedError("Verifique el email o contraseña"));

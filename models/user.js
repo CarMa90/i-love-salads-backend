@@ -224,7 +224,7 @@ userSchema.statics.findUserByCredentials = function findUserByCredentials(
 ) {
   const query = {};
 
-  if (/^\d+\$/.test(loginIdentifier)) {
+  if (/^\d+$/.test(loginIdentifier)) {
     query["mobile.phone"] = loginIdentifier;
   } else if (validator.isEmail(loginIdentifier)) {
     query.email = loginIdentifier.toLowerCase();

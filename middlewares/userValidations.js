@@ -79,21 +79,10 @@ const userRegisterValidator = celebrate({
 
 const userLoginValidator = celebrate({
   body: Joi.object().keys({
-    email: Joi.string()
-      .required()
-      .custom((value, helpers) => {
-        if (!validator.isEmail(value)) {
-          return helpers.error("any.email");
-        }
-        return value;
-      })
-      .email()
-      .messages({
-        "string.empty": "El email es obligatorio",
-        "any.required": "El email es obligatorio",
-        "any.email": "El formato de email no es válido",
-        "string.email": "El formato de email es incorrecto",
-      }),
+    loginIdentifier: Joi.string().required().trim().messages({
+      "string.empty": "El campo celular, usuario o correo es obligatorio",
+      "any.required": "El identificador de acceso es obligatorio",
+    }),
     password: Joi.string()
       .required()
       .min(8)

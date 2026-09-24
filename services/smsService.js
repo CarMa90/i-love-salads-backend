@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { NODE_ENV, SMS_API_KEY } = process.env;
+const { NODE_ENV, SMS_API_KEY, BUSINESS_NAME } = process.env;
 
 module.exports.sendVerificationSms = async function sendVerificationSms(
   countryCode,
@@ -9,7 +9,7 @@ module.exports.sendVerificationSms = async function sendVerificationSms(
 ) {
   const cleanCountryCode = countryCode.replace("+", "");
   const fullNumber = `${cleanCountryCode}${phone}`;
-  const messageText = `Tu codigo de verificacion para I Love Salads es: ${otpCode}. Expira en 10 minutos.`;
+  const messageText = `Tu codigo de verificacion para ${BUSINESS_NAME} es: ${otpCode}. Expira en 10 minutos.`;
 
   if (NODE_ENV !== "production") {
     console.log("------------------------------------------------");
@@ -29,7 +29,7 @@ module.exports.sendVerificationSms = async function sendVerificationSms(
       body: JSON.stringify({
         numbers: phone,
         message: messageText,
-        sender: "ILoveSalads",
+        sender: BUSINESS_NAME,
         country_code: cleanCountryCode,
       }),
     });
