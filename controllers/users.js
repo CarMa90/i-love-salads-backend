@@ -7,6 +7,7 @@ const ConflictError = require("../errors/conflict-err");
 const UnauthorizedError = require("../errors/unauthorized-err");
 const NotFoundError = require("../errors/not-found-err");
 require("dotenv").config();
+const { sendVerificationSms } = require("../services/smsService");
 
 const { NODE_ENV, JWT_SECRET } = process.env;
 
@@ -109,11 +110,29 @@ module.exports.createUser = (req, res, next) => {
       return User.create(userPayload);
     })
     .then((user) => {
-      console.log(`[SMS OTP enviado a ${user.mobile.phone}]: ${phoneOtp}`);
-      if (user.userType === "admin") {
-        console.log(`[Email OTP enviado a ${user.email}]: ${emailOtp}`);
-      }
+      // Creamos un arreglo de promesas para disparar los envíos en paralelo
+      const trackingPromises = [];
 
+      // 1. Siempre disparamos el SMS (para cliente y admin)
+      trackingPromises.push(
+        sendVerificationSms(
+          user.mobile.countryCode,
+          user.mobile.phone,
+          phoneOtp,
+        ),
+      );
+
+      // 2. Si es admin, disparamos también el correo electrónico
+      /*
+      if (user.userType === "admin") {
+        trackingPromises.push(sendVerificationEmail(user.email, emailOtp));
+      }
+      */
+
+      // Esperamos a que los servicios procesen (ya sea simulación o real)
+      return Promise.all(trackingPromises).then(() => user);
+    })
+    .then((user) => {
       return res.status(201).send({
         data: {
           email: user.email || null,
@@ -153,6 +172,139 @@ module.exports.createUser = (req, res, next) => {
     });
 };
 
+module.exports.verifyAcount = (req, res, next) => {
+  const { loginIdentifier, otpCode } = req.body;
+  // console.log(loginIdentifier);
+
+  if (!loginIdentifier || !otpCode) {
+    return next(
+      new BadRequestError("El identificador y el código OTP son obligatorios"),
+    );
+  }
+
+  const query = {};
+  const isNumeric = /^\d+$/.test(loginIdentifier);
+
+  if (isNumeric) {
+    query["mobile.phone"] = loginIdentifier;
+  } else {
+    query.email = loginIdentifier.toLowerCase();
+  }
+
+  User.findOne(query)
+    .select(
+      "+phoneVerificationToken +phoneTokenExpires +emailVerificationToken +emailTokenExpires",
+    )
+    .then((user) => {
+      if (!user) {
+        return next(new NotFoundError("Usuario no encontrado"));
+      }
+
+      const now = new Date();
+      const updateFields = {};
+
+      if (isNumeric) {
+        if (user.isPhoneVerified) {
+          return next(
+            new BadRequestError(
+              "Este número de teléfono ya ha sido verificado",
+            ),
+          );
+        }
+        if (user.phoneVerificationToken !== otpCode) {
+          return next(new BadRequestError("El código SMS es incorrecto"));
+        }
+        if (now > user.phoneTokenExpires) {
+          return next(
+            new BadRequestError(
+              "El código SMS ha expirado, solicita uno nuevo",
+            ),
+          );
+        }
+
+        updateFields.isPhoneVerified = true;
+        updateFields.phoneVerificationToken = null;
+      } else {
+        if (user.isEmailVerified) {
+          return next(
+            new BadRequestError(
+              "Este correo electrónico ya ha sido verificado",
+            ),
+          );
+        }
+        if (user.emailVerificationToken !== otpCode) {
+          return next(new BadRequestError("El código de correo es incorrecto"));
+        }
+        if (now > user.emailTokenExpires) {
+          return next(
+            new BadRequestError(
+              "El código de correo ha expirado, solicita uno nuevo",
+            ),
+          );
+        }
+
+        updateFields.isEmailVerified = true;
+        updateFields.emailVerificationToken = null;
+      }
+
+      const willPhoneBeVerified = isNumeric ? true : user.isPhoneVerified;
+      const willEmailBeVerified = !isNumeric ? true : user.isEmailVerified;
+
+      let shouldSavePermanently = false;
+
+      if (user.userType === "client" && willPhoneBeVerified) {
+        shouldSavePermanently = true;
+      } else if (
+        user.userType === "admin" &&
+        willPhoneBeVerified &&
+        willEmailBeVerified
+      ) {
+        shouldSavePermanently = true;
+      }
+
+      const mongoUpdate = { $set: updateFields };
+
+      if (shouldSavePermanently) {
+        mongoUpdate.$unset = { expireAt: 1 };
+      }
+
+      return User.findByIdAndUpdate(user._id, mongoUpdate, {
+        returnDocument: "after",
+      }).then((updatedUser) => {
+        let message = "Verificación parcial correcta.";
+        let isFullyActive = false;
+
+        if (updatedUser.userType === "client" && updatedUser.isPhoneVerified) {
+          message =
+            "¡Cuenta verificada con éxito! Tu registro ahora es permanente.";
+          isFullyActive = true;
+        } else if (updatedUser.userType === "admin") {
+          if (updatedUser.isPhoneVerified && updatedUser.isEmailVerified) {
+            message =
+              "¡Cuenta verificada con éxito! Tu registro ahora es permanente.";
+            isFullyActive = true;
+          } else {
+            message = isNumeric
+              ? "Teléfono verificado. Aún falta verificar tu correo electrónico."
+              : "Correo verificado. Aún falta verificar tu número de teléfono.";
+          }
+        }
+
+        return res.status(200).send({
+          data: {
+            name: updatedUser.name,
+            userType: updatedUser.userType,
+            isPhoneVerified: updatedUser.isPhoneVerified,
+            isEmailVerified: updatedUser.isEmailVerified,
+            isFullyActive,
+          },
+          message,
+        });
+      });
+    })
+    .catch(next);
+};
+
 module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
 
@@ -161,7 +313,7 @@ module.exports.login = (req, res, next) => {
       const token = jwt.sign(
         { _id: user._id.toString(), userType: user.userType },
         NODE_ENV === "production" ? JWT_SECRET : "dev-secret",
-        { expiresIn: "15d" },
+        { expiresIn: "7d" },
       );
       return res.status(200).send({ token });
     })
