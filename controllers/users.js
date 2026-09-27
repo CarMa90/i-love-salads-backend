@@ -462,6 +462,51 @@ module.exports.login = (req, res, next) => {
     });
 };
 
+module.exports.updateMyProfile = (req, res, next) => {
+  const { _id: requesterId } = req.user;
+  const { name } = req.body;
+
+  if (!name || name.trim().length < 2) {
+    return next(
+      new BadRequestError("El nombre debe contener al menos dos caracteres"),
+    );
+  }
+
+  User.findByIdAndUpdate(
+    requesterId,
+    { $set: { name: name.trim() } },
+    { returnDocument: "after", runValidators: true },
+  )
+    .then((user) => {
+      if (!user) {
+        return next(
+          new NotFoundError("No se encontró ningún usuario con ese ID"),
+        );
+      }
+
+      return res.status(200).send({
+        status: "success",
+        data: {
+          name: user.name,
+          userType: user.userType,
+          email: user.email || null,
+          mobile: user.mobile || null,
+          username: user.username || null,
+        },
+        message: "Perfil actualizado con éxito.",
+      });
+    })
+    .catch((err) => {
+      if (err.name === "ValidationError") {
+        const message = Object.values(err.errors)
+          .map((error) => error.message)
+          .join(", ");
+        return next(new BadRequestError(message));
+      }
+      return next(err);
+    });
+};
+
 module.exports.disableUser = (req, res, next) => {
   const { _id: requesterId, userType: requesterRole } = req.user;
   const { userId: targetUserId } = req.params;

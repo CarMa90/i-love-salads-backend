@@ -4,6 +4,7 @@ const {
   getUserInfo,
   createCashier,
   disableUser,
+  updateMyProfile,
 } = require("../controllers/users");
 const { adminAuth } = require("../middlewares/auth");
 const {
@@ -11,11 +12,13 @@ const {
   userIdValidator,
 } = require("../middlewares/userValidations");
 
+router.post("/cashier", adminAuth, createCashierValidator, createCashier);
+
 router.get("/", getUsers);
 
 router.get("/me", getUserInfo);
 
-router.post("/cashier", adminAuth, createCashierValidator, createCashier);
+router.put("/me", updateMyProfile);
 
 router.delete("/me", disableUser);
 
