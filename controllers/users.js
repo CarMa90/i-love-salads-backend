@@ -172,6 +172,82 @@ module.exports.createUser = (req, res, next) => {
     });
 };
 
+module.exports.createCashier = (req, res, next) => {
+  const { name, username, password, branchId } = req.body;
+
+  if (!name || !username || !password || !branchId) {
+    return next(
+      new BadRequestError(
+        "Todos los campos (name, username, password, branchId) son obligatorios",
+      ),
+    );
+  }
+
+  if (password.length < 8) {
+    return next(
+      new BadRequestError(
+        "El password del cajero debe tener al menos 8 caracteres",
+      ),
+    );
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+  if (!passwordRegex.test(password)) {
+    return next(
+      new BadRequestError(
+        "El password debe contener al menos una mayúscula, una minúscula, un número y un caracter especial",
+      ),
+    );
+  }
+
+  User.findOne({ username: username.toLowerCase() })
+    .then((existingUser) => {
+      if (existingUser) {
+        throw new ConflictError(
+          "Este nombre de usuario ya está asignado a otro cajero",
+        );
+      }
+      return bcrypt.hash(password, 10);
+    })
+    .then((hashedPassword) => {
+      const cashierPayload = {
+        name,
+        username: username.toLowerCase(),
+        password: hashedPassword,
+        userType: "restaurant",
+        branchId,
+        isPhoneVerified: true,
+        isEmailVerified: true,
+      };
+
+      return User.create(cashierPayload);
+    })
+    .then((newCashier) => {
+      return res.status(201).send({
+        status: "success",
+        data: {
+          id: newCashier._id,
+          name: newCashier.name,
+          username: newCashier.username,
+          userType: newCashier.userType,
+          branchId: newCashier.branchId,
+        },
+        message: `El cajero "${newCashier.name}" ha sido creado con éxito para la sucursal.`,
+      });
+    })
+    .catch((err) => {
+      if (err.code === 11000 || err.cause?.code === 11000) {
+        return next(
+          new ConflictError(
+            "El nombre de usuario o credenciales ya se encuentran en uso.",
+          ),
+        );
+      }
+      return next(err);
+    });
+};
+
 module.exports.verifyAcount = (req, res, next) => {
   const { loginIdentifier, otpCode } = req.body;
 
