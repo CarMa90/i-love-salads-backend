@@ -187,6 +187,10 @@ const userSchema = new mongoose.Schema(
         return new Date();
       },
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true },
 );

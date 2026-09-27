@@ -141,8 +141,11 @@ const userIdValidator = celebrate({
       .pattern(/^[0-9a-fA-F]{24}$/)
       .required()
       .messages({
-        "string.pattern.base": "El userId debe ser un ID válido de Mongo.",
-        "any.required": "El userId es obligatorio.",
+        "string.pattern.base":
+          "El identificador de usuario en la URL debe ser un ID válido de Mongo.",
+        "any.required":
+          "El identificador de usuario es obligatorio en la ruta.",
+        "string.empty": "El identificador de usuario no puede estar vacío.",
       }),
   }),
 });

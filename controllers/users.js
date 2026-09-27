@@ -391,6 +391,13 @@ module.exports.login = (req, res, next) => {
 
   return User.findUserByCredentials(loginIdentifier, password)
     .then((user) => {
+      if (!user.isActive) {
+        return Promise.reject(
+          new UnauthorizedError(
+            "Esta cuenta se encuentra inhabilitada. Contacta a soporte técnico.",
+          ),
+        );
+      }
       if (user.userType === "client" && !user.isPhoneVerified) {
         return next(
           new UnauthorizedError(
@@ -398,7 +405,6 @@ module.exports.login = (req, res, next) => {
           ),
         );
       }
-
       if (user.userType === "admin") {
         if (!user.isPhoneVerified && !user.isEmailVerified) {
           return next(
@@ -444,7 +450,64 @@ module.exports.login = (req, res, next) => {
         message: "Inicio de sesión exitoso. ¡Bienvenido!",
       });
     })
-    .catch(() => {
-      return next(new UnauthorizedError("Verifique el email o contraseña"));
+    .catch((err) => {
+      if (err.message === "Verifique credenciales o contraseña") {
+        return next(
+          new UnauthorizedError(
+            "El identificador o la contraseña son incorrectos",
+          ),
+        );
+      }
+      return next(err);
     });
+};
+
+module.exports.disableUser = (req, res, next) => {
+  const { _id: requesterId, userType: requesterRole } = req.user;
+  const { userId: targetUserId } = req.params;
+
+  const finalUserId = targetUserId || requesterId;
+
+  User.findById(finalUserId)
+    .then((user) => {
+      if (!user) {
+        return next(
+          new NotFoundError("No se encontró ningún usuario con ese ID"),
+        );
+      }
+
+      if (user.userType === "restaurant" && requesterRole !== "admin") {
+        return next(
+          new BadRequestError(
+            "Acceso denegado: Solo un administrador puede inhabilitar al personal de sucursal",
+          ),
+        );
+      }
+
+      if (!targetUserId && user._id.toString() !== requesterId.toString()) {
+        return next(
+          new BadRequestError(
+            "Acceso denegado: No puedes inhabilitar una cuenta ajena",
+          ),
+        );
+      }
+
+      return User.findByIdAndUpdate(
+        user._id,
+        { $set: { isActive: false } },
+        { returnDocument: "after" },
+      );
+    })
+    .then((updatedUser) => {
+      const isSelfDisable =
+        updatedUser._id.toString() === requesterId.toString();
+
+      return res.status(200).send({
+        status: "success",
+        message: isSelfDisable
+          ? "Tu cuenta ha sido inhabilitada correctamente. Lamentamos que te vayas."
+          : `El usuario operativo "${updatedUser.name}" ha sido inhabilitado por el administrador.`,
+      });
+    })
+    .catch(next);
 };
