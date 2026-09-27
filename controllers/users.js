@@ -339,6 +339,10 @@ module.exports.verifyAcount = (req, res, next) => {
 
       const mongoUpdate = { $set: updateFields };
 
+      if (!user.isActive && shouldSavePermanently) {
+        updateFields.isActive = true;
+      }
+
       if (shouldSavePermanently) {
         mongoUpdate.$unset = { expireAt: 1 };
       }
@@ -392,11 +396,51 @@ module.exports.login = (req, res, next) => {
   return User.findUserByCredentials(loginIdentifier, password)
     .then((user) => {
       if (!user.isActive) {
-        return Promise.reject(
-          new UnauthorizedError(
-            "Esta cuenta se encuentra inhabilitada. Contacta a soporte técnico.",
-          ),
-        );
+        const reactivateOtp = crypto.randomInt(100000, 999999).toString();
+        const tokenExpires = new Date(Date.now() + 10 * 60 * 1000); // Vence en 10 minutos
+
+        // Inyectamos los tokens de verificación para abrir el candado
+        user.phoneVerificationToken = reactivateOtp;
+        user.phoneTokenExpires = tokenExpires;
+
+        if (user.userType === "admin") {
+          user.emailVerificationToken = reactivateOtp;
+          user.emailTokenExpires = tokenExpires;
+        }
+
+        // Guardamos los tokens efímeros en el documento
+        return user.save().then(() => {
+          const trackingPromises = [];
+
+          // Despachamos por celular a clientes y administradores
+          if (user.mobile && user.mobile.phone) {
+            trackingPromises.push(
+              sendVerificationSms(
+                user.mobile.countryCode,
+                user.mobile.phone,
+                reactivateOtp,
+              ),
+            );
+          }
+
+          // Despachamos por correo adicionalmente si es administrador
+          if (user.userType === "admin" && user.email) {
+            trackingPromises.push(
+              sendVerificationEmail(user.email, reactivateOtp),
+            );
+          }
+
+          // Esperamos a que los servicios envíen las alertas (simulación o producción)
+          return Promise.all(trackingPromises).then(() => {
+            return res.status(200).send({
+              status: "reactivation_pending",
+              message:
+                user.userType === "admin"
+                  ? "Tu cuenta está inhabilitada. Hemos enviado un código a tu celular y correo para reactivarla."
+                  : "Tu cuenta está inhabilitada. Hemos enviado un código SMS a tu celular para reactivarla.",
+            });
+          });
+        });
       }
       if (user.userType === "client" && !user.isPhoneVerified) {
         return next(
@@ -537,9 +581,15 @@ module.exports.disableUser = (req, res, next) => {
         );
       }
 
+      const disableFields = { isActive: false, isPhoneVerified: false };
+
+      if (user.userType === "admin") {
+        disableFields.isEmailVerified = false;
+      }
+
       return User.findByIdAndUpdate(
         user._id,
-        { $set: { isActive: false } },
+        { $set: disableFields },
         { returnDocument: "after" },
       );
     })

@@ -14,7 +14,7 @@ const limiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
-  limit: 5, // Máximo 5 intentos fallidos/solicitudes por IP por hora
+  limit: 10, // Máximo 5 intentos fallidos/solicitudes por IP por hora
   message:
     "Demasiados intentos de inicio de sesión. Cuenta bloqueada temporalmente por 1 hora.",
 });
