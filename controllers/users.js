@@ -396,16 +396,21 @@ module.exports.login = (req, res, next) => {
   return User.findUserByCredentials(loginIdentifier, password)
     .then((user) => {
       if (!user.isActive) {
-        const reactivateOtp = crypto.randomInt(100000, 999999).toString();
+        const reactivatePhoneOtp = crypto.randomInt(100000, 999999).toString();
+        const reactivateEmailOtp = crypto.randomInt(100000, 999999).toString();
         const tokenExpires = new Date(Date.now() + 10 * 60 * 1000); // Vence en 10 minutos
 
         // Inyectamos los tokens de verificación para abrir el candado
-        user.phoneVerificationToken = reactivateOtp;
-        user.phoneTokenExpires = tokenExpires;
+        user.set({
+          phoneVerificationToken: reactivatePhoneOtp,
+          phoneTokenExpires: tokenExpires,
+        });
 
         if (user.userType === "admin") {
-          user.emailVerificationToken = reactivateOtp;
-          user.emailTokenExpires = tokenExpires;
+          user.set({
+            emailVerificationToken: reactivateEmailOtp,
+            emailTokenExpires: tokenExpires,
+          });
         }
 
         // Guardamos los tokens efímeros en el documento
@@ -418,7 +423,7 @@ module.exports.login = (req, res, next) => {
               sendVerificationSms(
                 user.mobile.countryCode,
                 user.mobile.phone,
-                reactivateOtp,
+                reactivatePhoneOtp,
               ),
             );
           }
@@ -426,7 +431,7 @@ module.exports.login = (req, res, next) => {
           // Despachamos por correo adicionalmente si es administrador
           if (user.userType === "admin" && user.email) {
             trackingPromises.push(
-              sendVerificationEmail(user.email, reactivateOtp),
+              sendVerificationEmail(user.email, reactivateEmailOtp),
             );
           }
 
