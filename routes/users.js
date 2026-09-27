@@ -18,7 +18,7 @@ router.get("/", getUsers);
 
 router.get("/me", getUserInfo);
 
-router.put("/me", updateMyProfile);
+router.patch("/me", updateMyProfile);
 
 router.delete("/me", disableUser);
 
