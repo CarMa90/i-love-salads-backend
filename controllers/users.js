@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
+const validator = require("validator");
 const User = require("../models/user");
 const BadRequestError = require("../errors/bad-request-err");
 const ConflictError = require("../errors/conflict-err");
@@ -133,6 +134,23 @@ module.exports.createUser = (req, res, next) => {
       return Promise.all(trackingPromises).then(() => user);
     })
     .then((user) => {
+      if (NODE_ENV !== "production") {
+        return res.status(201).send({
+          data: {
+            email: user.email || null,
+            name: user.name,
+            userType: user.userType,
+            mobile: user.mobile,
+            phoneVerificationToken: user.phoneVerificationToken,
+            emailVerificationToken: user.emailVerificationToken,
+          },
+          message:
+            user.userType === "admin"
+              ? "Registro inicial correcto. Revisa tu SMS y tu Correo para validar tu cuenta."
+              : "Registro inicial correcto. Revisa tu SMS para validar tu cuenta.",
+        });
+      }
+
       return res.status(201).send({
         data: {
           email: user.email || null,
@@ -607,6 +625,251 @@ module.exports.disableUser = (req, res, next) => {
         message: isSelfDisable
           ? "Tu cuenta ha sido inhabilitada correctamente. Lamentamos que te vayas."
           : `El usuario operativo "${updatedUser.name}" ha sido inhabilitado por el administrador.`,
+      });
+    })
+    .catch(next);
+};
+
+module.exports.forgotPassword = (req, res, next) => {
+  const { loginIdentifier } = req.body;
+
+  if (!loginIdentifier) {
+    return next(
+      new BadRequestError("El celular o correo electrónico es obligatorio"),
+    );
+  }
+
+  const query = { isActive: true };
+  const isNumeric = /^\d+$/.test(loginIdentifier);
+
+  if (isNumeric) {
+    query["mobile.phone"] = loginIdentifier;
+  } else if (validator.isEmail(loginIdentifier)) {
+    query.email = loginIdentifier.toLowerCase().trim();
+  } else {
+    return next(
+      new BadRequestError(
+        "Los usuarios de sucursal deben solicitar el restablecimiento directamente a su administrador",
+      ),
+    );
+  }
+
+  User.findOne(query).then((user) => {
+    if (!user) {
+      return next(
+        new NotFoundError("No existe ninguna cuenta activa con esos datos"),
+      );
+    }
+
+    const resetOtp = crypto.randomInt(100000, 999999).toString();
+    const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+    if (user.userType === "client") {
+      user.set({
+        phoneVerificationToken: resetOtp,
+        phoneTokenExpires: expires,
+      });
+    }
+
+    if (user.userType === "admin") {
+      user.set({
+        emailVerificationToken: resetOtp,
+        emailTokenExpires: expires,
+      });
+    }
+
+    return user
+      .save()
+      .then(() => {
+        const trackingPromises = [];
+
+        if (user.userType === "client" && user.mobile && user.mobile.phone) {
+          trackingPromises.push(
+            sendVerificationSms(
+              user.mobile.countryCode,
+              user.mobile.phone,
+              resetOtp,
+            ),
+          );
+        }
+
+        if (user.userType === "admin" && user.email) {
+          trackingPromises.push(sendVerificationEmail(user.email, resetOtp));
+        }
+
+        return Promise.all(trackingPromises);
+      })
+      .then(() => {
+        return res.status(200).send({
+          status: "success",
+          message:
+            user.userType === "admin"
+              ? "Se ha enviado un email con un código de verificación de 6 dígitos para restablecer tu contraseña."
+              : "Se ha enviado un menseaje con un código de verificación de 6 dígitos para restablecer tu contraseña.",
+        });
+      })
+      .catch(next);
+  });
+};
+
+module.exports.resetPassword = (req, res, next) => {
+  const { loginIdentifier, otpCode, newPassword } = req.body;
+
+  if (!loginIdentifier || !otpCode || !newPassword) {
+    return next(
+      new BadRequestError(
+        "Todos los campos (loginIdentifier, otpCode, newPassword) son obligatorios",
+      ),
+    );
+  }
+
+  if (newPassword.length < 8) {
+    return next(
+      new BadRequestError("El password debe tener al menos 8 caracteres"),
+    );
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+  if (!passwordRegex.test(newPassword)) {
+    return next(
+      new BadRequestError(
+        "El password debe contener al menos una mayúscula, una minúscula, un número y un caracter especial",
+      ),
+    );
+  }
+
+  const query = { isActive: true };
+  const isNumeric = /^\d+$/.test(loginIdentifier);
+
+  if (isNumeric) {
+    query["mobile.phone"] = loginIdentifier;
+  } else {
+    query.email = loginIdentifier.toLowerCase().trim();
+  }
+
+  User.findOne(query)
+    .select(
+      "+phoneVerificationToken +phoneTokenExpires +emailVerificationToken +emailTokenExpires",
+    )
+    .then((user) => {
+      if (!user) {
+        return next(new NotFoundError("Usuario no encontrado"));
+      }
+
+      const activeToken = isNumeric
+        ? user.phoneVerificationToken
+        : user.emailVerificationToken;
+      const activeExpires = isNumeric
+        ? user.phoneTokenExpires
+        : user.emailTokenExpires;
+
+      if (!activeToken || activeToken !== otpCode) {
+        return next(
+          new BadRequestError("El código de verificación es incorrecto"),
+        );
+      }
+
+      if (new Date() > activeExpires) {
+        return next(
+          new BadRequestError(
+            "El código de verificación ha expirado, solicita uno nuevo",
+          ),
+        );
+      }
+
+      return bcrypt.hash(newPassword, 10).then((hashedPassword) => {
+        user.set({
+          password: hashedPassword,
+          phoneVerificationToken: null,
+          phoneTokenExpires: null,
+          emailVerificationToken: null,
+          emailTokenExpires: null,
+        });
+
+        return user.save();
+      });
+    })
+    .then(() => {
+      return res.status(200).send({
+        status: "success",
+        message:
+          "Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión con tus nuevas credenciales.",
+      });
+    })
+    .catch(next);
+};
+
+module.exports.resetCashierPassword = (req, res, next) => {
+  const { _id: requesterId } = req.user; // Admin logueado
+  const { userId: targetUserId } = req.params; // ID del cajero en la URL
+  const { newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 8) {
+    return next(
+      new BadRequestError(
+        "La nueva contraseña es obligatoria y debe tener al menos 8 caracteres",
+      ),
+    );
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}\$/;
+  if (!passwordRegex.test(newPassword)) {
+    return next(
+      new BadRequestError(
+        "La contraseña no cumple con el formato de caracteres especiales requerido",
+      ),
+    );
+  }
+
+  User.findById(targetUserId)
+    .then((cashier) => {
+      if (!cashier) {
+        return next(
+          new NotFoundError("No se encontró ningún usuario con ese ID"),
+        );
+      }
+
+      if (cashier.userType !== "restaurant") {
+        return next(
+          new BadRequestError(
+            "Acceso denegado: Este endpoint es exclusivo para modificar personal de sucursal",
+          ),
+        );
+      }
+
+      return cashier
+        .populate({
+          path: "branchId",
+          populate: { path: "restaurantId" },
+        })
+        .then((populatedCashier) => {
+          const restaurantOwnerId =
+            populatedCashier.branchId?.restaurantId?.ownerId;
+
+          if (
+            !restaurantOwnerId ||
+            restaurantOwnerId.toString() !== requesterId.toString()
+          ) {
+            return next(
+              new BadRequestError(
+                "Acceso denegado: No tienes permisos sobre el personal de esta sucursal",
+              ),
+            );
+          }
+
+          return bcrypt.hash(newPassword, 10).then((hashedPassword) => {
+            cashier.set({
+              password: hashedPassword,
+            });
+            return cashier.save();
+          });
+        });
+    })
+    .then((savedCashier) => {
+      if (!savedCashier) return;
+      return res.status(200).send({
+        status: "success",
+        message: `La contraseña del cajero "${savedCashier.name}" ha sido actualizada con éxito por el administrador.`,
       });
     })
     .catch(next);

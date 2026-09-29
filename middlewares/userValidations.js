@@ -168,10 +168,50 @@ const tokenVerifyValidator = celebrate({
   }),
 });
 
+const forgotPasswordValidator = celebrate({
+  body: Joi.object().keys({
+    loginIdentifier: Joi.string().required().trim().messages({
+      "string.empty": "El campo celular, usuario o correo es obligatorio",
+      "any.required": "El identificador de acceso es obligatorio",
+    }),
+  }),
+});
+
+const resetPasswordValidator = celebrate({
+  body: Joi.object().keys({
+    loginIdentifier: Joi.string().required().trim().messages({
+      "string.empty": "El campo celular o correo es obligatorio",
+      "any.required": "El identificador de acceso es obligatorio",
+    }),
+    otpCode: Joi.string()
+      .pattern(/^[0-9]{6}$/)
+      .required()
+      .messages({
+        "string.pattern.base":
+          "El código de verificación debe constar de 6 números.",
+        "any.required": "El código de verificación es obligatorio.",
+        "string.empty": "El código de verificación es obligatorio.",
+      }),
+    newPassword: Joi.string()
+      .required()
+      .min(8)
+      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/)
+      .messages({
+        "string.empty": "El nuevo password es obligatorio",
+        "string.min": "El nuevo password debe tener al menos 8 caracteres",
+        "string.pattern.base":
+          "El nuevo password debe contener al menos una mayúscula, una minúscula, un número y un caracter especial",
+        "any.required": "El nuevo password es obligatorio",
+      }),
+  }),
+});
+
 module.exports = {
   userRegisterValidator,
   userLoginValidator,
   userIdValidator,
   tokenVerifyValidator,
   createCashierValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator,
 };

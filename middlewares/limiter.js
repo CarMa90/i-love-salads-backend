@@ -14,9 +14,18 @@ const limiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
-  limit: 10, // Máximo 5 intentos fallidos/solicitudes por IP por hora
+  limit: 5, // Máximo 5 intentos fallidos/solicitudes por IP por hora
   message:
     "Demasiados intentos de inicio de sesión. Cuenta bloqueada temporalmente por 1 hora.",
 });
 
-module.exports = { limiter, loginLimiter };
+const passwordResetLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // Ventana de 30 minutos
+  max: 3, // Máximo 3 solicitudes por IP cada 30 minutos
+  message: {
+    message:
+      "Demasiados intentos de recuperación desde esta dirección. Intenta más tarde.",
+  },
+});
+
+module.exports = { limiter, loginLimiter, passwordResetLimiter };
