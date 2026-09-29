@@ -19,4 +19,13 @@ const loginLimiter = rateLimit({
     "Demasiados intentos de inicio de sesión. Cuenta bloqueada temporalmente por 1 hora.",
 });
 
-module.exports = { limiter, loginLimiter };
+const passwordResetLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // Ventana de 30 minutos
+  max: 3, // Máximo 3 solicitudes por IP cada 30 minutos
+  message: {
+    message:
+      "Demasiados intentos de recuperación desde esta dirección. Intenta más tarde.",
+  },
+});
+
+module.exports = { limiter, loginLimiter, passwordResetLimiter };
