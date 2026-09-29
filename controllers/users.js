@@ -419,51 +419,59 @@ module.exports.login = (req, res, next) => {
         const tokenExpires = new Date(Date.now() + 10 * 60 * 1000); // Vence en 10 minutos
 
         // Inyectamos los tokens de verificación para abrir el candado
-        user.set({
-          phoneVerificationToken: reactivatePhoneOtp,
-          phoneTokenExpires: tokenExpires,
-        });
+        let updateFields = {};
+
+        if (user.userType === "client") {
+          updateFields = {
+            phoneVerificationToken: reactivatePhoneOtp,
+            phoneTokenExpires: tokenExpires,
+          };
+        }
 
         if (user.userType === "admin") {
-          user.set({
+          updateFields = {
+            phoneVerificationToken: reactivatePhoneOtp,
+            phoneTokenExpires: tokenExpires,
             emailVerificationToken: reactivateEmailOtp,
             emailTokenExpires: tokenExpires,
-          });
+          };
         }
 
         // Guardamos los tokens efímeros en el documento
-        return user.save().then(() => {
-          const trackingPromises = [];
+        return User.findByIdAndUpdate(user._id, { $set: updateFields }).then(
+          () => {
+            const trackingPromises = [];
 
-          // Despachamos por celular a clientes y administradores
-          if (user.mobile && user.mobile.phone) {
-            trackingPromises.push(
-              sendVerificationSms(
-                user.mobile.countryCode,
-                user.mobile.phone,
-                reactivatePhoneOtp,
-              ),
-            );
-          }
+            // Despachamos por celular a clientes y administradores
+            if (user.mobile && user.mobile.phone) {
+              trackingPromises.push(
+                sendVerificationSms(
+                  user.mobile.countryCode,
+                  user.mobile.phone,
+                  reactivatePhoneOtp,
+                ),
+              );
+            }
 
-          // Despachamos por correo adicionalmente si es administrador
-          if (user.userType === "admin" && user.email) {
-            trackingPromises.push(
-              sendVerificationEmail(user.email, reactivateEmailOtp),
-            );
-          }
+            // Despachamos por correo adicionalmente si es administrador
+            if (user.userType === "admin" && user.email) {
+              trackingPromises.push(
+                sendVerificationEmail(user.email, reactivateEmailOtp),
+              );
+            }
 
-          // Esperamos a que los servicios envíen las alertas (simulación o producción)
-          return Promise.all(trackingPromises).then(() => {
-            return res.status(200).send({
-              status: "reactivation_pending",
-              message:
-                user.userType === "admin"
-                  ? "Tu cuenta está inhabilitada. Hemos enviado un código a tu celular y correo para reactivarla."
-                  : "Tu cuenta está inhabilitada. Hemos enviado un código SMS a tu celular para reactivarla.",
+            // Esperamos a que los servicios envíen las alertas (simulación o producción)
+            return Promise.all(trackingPromises).then(() => {
+              return res.status(200).send({
+                status: "reactivation_pending",
+                message:
+                  user.userType === "admin"
+                    ? "Tu cuenta está inhabilitada. Hemos enviado un código a tu celular y correo para reactivarla."
+                    : "Tu cuenta está inhabilitada. Hemos enviado un código SMS a tu celular para reactivarla.",
+              });
             });
-          });
-        });
+          },
+        );
       }
       if (user.userType === "client" && !user.isPhoneVerified) {
         return next(
@@ -664,22 +672,25 @@ module.exports.forgotPassword = (req, res, next) => {
     const resetOtp = crypto.randomInt(100000, 999999).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000);
 
+    let updateFields = {};
+
     if (user.userType === "client") {
-      user.set({
+      updateFields = {
         phoneVerificationToken: resetOtp,
         phoneTokenExpires: expires,
-      });
+      };
     }
 
     if (user.userType === "admin") {
-      user.set({
+      updateFields = {
+        phoneVerificationToken: resetOtp,
+        phoneTokenExpires: expires,
         emailVerificationToken: resetOtp,
         emailTokenExpires: expires,
-      });
+      };
     }
 
-    return user
-      .save()
+    return User.findByIdAndUpdate(user._id, { $set: updateFields })
       .then(() => {
         const trackingPromises = [];
 
@@ -778,15 +789,27 @@ module.exports.resetPassword = (req, res, next) => {
       }
 
       return bcrypt.hash(newPassword, 10).then((hashedPassword) => {
-        user.set({
-          password: hashedPassword,
-          phoneVerificationToken: null,
-          phoneTokenExpires: null,
-          emailVerificationToken: null,
-          emailTokenExpires: null,
-        });
+        let updateFields = {};
 
-        return user.save();
+        if (user.userType === "client") {
+          updateFields = {
+            password: hashedPassword,
+            phoneVerificationToken: null,
+            phoneTokenExpires: null,
+          };
+        }
+
+        if (user.userType === "admin") {
+          updateFields = {
+            password: hashedPassword,
+            emailVerificationToken: null,
+            emailTokenExpires: null,
+            phoneVerificationToken: null,
+            phoneTokenExpires: null,
+          };
+        }
+
+        return User.findByIdAndUpdate(user._id, { $set: updateFields });
       });
     })
     .then(() => {
