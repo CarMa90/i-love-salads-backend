@@ -881,10 +881,11 @@ module.exports.resetCashierPassword = (req, res, next) => {
           }
 
           return bcrypt.hash(newPassword, 10).then((hashedPassword) => {
-            cashier.set({
+            const updateFields = {
               password: hashedPassword,
-            });
-            return cashier.save();
+            };
+
+            return User.findByIdAndUpdate(cashier._id, { $set: updateFields });
           });
         });
     })
