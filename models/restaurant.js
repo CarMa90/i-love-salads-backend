@@ -14,6 +14,30 @@ const restaurantSchema = new mongoose.Schema(
       default: null, // Almacenará la URL de la imagen en tu CDN (Cloudinary / AWS S3)
     },
 
+    // 📝 Breve descripción del concepto del restaurante
+    description: {
+      type: String,
+      maxlength: [250, "La descripción no puede exceder los 250 caracteres"],
+      trim: true,
+      default: "",
+    },
+
+    // 🍕 Etiquetas de categorías de comida para los filtros de delivery
+    foodTypes: {
+      type: [String],
+      required: [
+        true,
+        "Debes seleccionar al menos una categoría de comida que describa tu restaurante",
+      ],
+      validate: {
+        validator(v) {
+          return Array.isArray(v) && v.length > 0;
+        },
+        message:
+          "El restaurante debe contener al menos una etiqueta de comida para los filtros.",
+      },
+    },
+
     // 🏪 RELACIÓN CORE: Conecta la franquicia directamente con su dueño (Administrador)
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
