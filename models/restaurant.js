@@ -114,7 +114,4 @@ const restaurantSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// 📌 ÍNDICES DE SEGURIDAD CONTRA DUPLICADOS
-restaurantSchema.index({ ownerId: 1 }, { unique: true });
-
 module.exports = mongoose.model("Restaurant", restaurantSchema);

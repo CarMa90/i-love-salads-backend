@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const usersRouter = require("./users");
 const ordersRouter = require("./orders");
+const restaurantsRouter = require("./restaurants");
 const {
   loginLimiter,
   passwordResetLimiter,
@@ -43,6 +44,9 @@ router.post(
 router.use(auth);
 
 router.use("/users", usersRouter);
+
+router.use("/restaurants", restaurantsRouter);
+
 router.use("/orders", ordersRouter);
 
 module.exports = router;
