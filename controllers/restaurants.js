@@ -2,6 +2,7 @@ const Restaurant = require("../models/restaurant");
 const BadRequestError = require("../errors/bad-request-err");
 const ConflictError = require("../errors/conflict-err");
 const ForbiddenError = require("../errors/forbidden-err");
+const NotFoundError = require("../errors/not-found-err");
 
 module.exports.createRestaurant = (req, res, next) => {
   const { _id: adminId, userType } = req.user;
@@ -80,4 +81,19 @@ module.exports.createRestaurant = (req, res, next) => {
       }
       return next(err);
     });
+};
+
+module.exports.getMyRestaurant = (req, res, next) => {
+  const { _id: adminId } = req.user;
+
+  Restaurant.findOne({ ownerId: adminId })
+    .then((restaurant) => {
+      if (!restaurant) {
+        throw new NotFoundError(
+          "No tienes ningún restaurante registrado en la plataforma",
+        );
+      }
+      return res.status(200).send({ status: "success", data: restaurant });
+    })
+    .catch(next);
 };

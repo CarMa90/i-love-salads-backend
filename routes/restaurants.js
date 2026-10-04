@@ -3,8 +3,13 @@ const { adminAuth } = require("../middlewares/auth");
 const {
   createRestaurantValidator,
 } = require("../middlewares/restaurantValidations");
-const { createRestaurant } = require("../controllers/restaurants");
+const {
+  createRestaurant,
+  getMyRestaurant,
+} = require("../controllers/restaurants");
 
 router.post("/", adminAuth, createRestaurantValidator, createRestaurant);
+
+router.get("/me", adminAuth, getMyRestaurant);
 
 module.exports = router;
