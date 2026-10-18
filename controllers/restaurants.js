@@ -97,3 +97,111 @@ module.exports.getMyRestaurant = (req, res, next) => {
     })
     .catch(next);
 };
+
+module.exports.updateBasicInfo = (req, res, next) => {
+  const { _id: adminId } = req.user;
+  const { name, logoUrl, description, foodTypes } = req.body;
+
+  const updateFields = {};
+  if (name) updateFields.name = name.trim();
+  if (logoUrl !== undefined) updateFields.logoUrl = logoUrl;
+  if (description !== undefined) updateFields.description = description.trim();
+  if (foodTypes && Array.isArray(foodTypes) && foodTypes.length > 0) {
+    updateFields.foodTypes = foodTypes.map((type) => type.toLowerCase().trim());
+  }
+
+  Restaurant.findOneAndUpdate(
+    { ownerId: adminId, isActive: true },
+    { $set: updateFields },
+    { returnDocument: "after", runValidators: true },
+  )
+    .then((restaurant) => {
+      if (!restaurant) {
+        throw new NotFoundError(
+          "No se encontró ningún restaurante activo asociado a tu cuenta",
+        );
+      }
+      return res.status(200).send({
+        status: "success",
+        data: restaurant,
+        message:
+          "La información básica del restaurante se actualizó correctamente.",
+      });
+    })
+    .catch(next);
+};
+
+module.exports.updateLoyaltyConfig = (req, res, next) => {
+  const { _id: adminId } = req.user;
+  const { programType, walletSettings, pointsSettings } = req.body;
+
+  console.log(programType, walletSettings, pointsSettings);
+
+  const updateFields = {};
+
+  updateFields["loyaltyConfig.programType"] = programType;
+
+  if (programType === "wallet" && walletSettings) {
+    updateFields["loyaltyConfig.walletSettings.cashbackPercentage"] =
+      walletSettings.cashbackPercentage || 0;
+  }
+
+  if (programType === "points" && pointsSettings) {
+    updateFields["loyaltyConfig.pointsSettings.pesosPerPoint"] =
+      pointsSettings.pesosPerPoint || 20;
+    updateFields["loyaltyConfig.pointsSettings.pointsThreshold"] =
+      pointsSettings.pointsThreshold || 100;
+    updateFields["loyaltyConfig.pointsSettings.rewardCouponAmount"] =
+      pointsSettings.rewardCouponAmount || 150;
+  }
+
+  Restaurant.findOneAndUpdate(
+    { ownerId: adminId, isActive: true },
+    { $set: updateFields },
+    { returnDocument: "after", runValidators: true },
+  )
+    .then((restaurant) => {
+      if (!restaurant) {
+        throw new NotFoundError(
+          "No se encontró ningún restaurante activo asociado a tu cuenta",
+        );
+      }
+      return res.status(200).send({
+        status: "success",
+        data: restaurant,
+        message: `El programa de lealtad (${programType}) ha sido actualizado y activado con éxito.`,
+      });
+    })
+    .catch(next);
+};
+
+module.exports.updateFirstPurchaseDiscount = (req, res, next) => {
+  const { _id: adminId } = req.user;
+  const { firstPurchaseDiscount, isFirstPurchaseDiscountActive } = req.body;
+
+  const updateFields = {
+    "promotions.firstPurchaseDiscount": firstPurchaseDiscount || 0,
+    "promotions.isFirstPurchaseDiscountActive":
+      isFirstPurchaseDiscountActive ?? false,
+  };
+
+  Restaurant.findOneAndUpdate(
+    { ownerId: adminId, isActive: true },
+    { $set: updateFields },
+    { returnDocument: "after", runValidators: true },
+  )
+    .then((restaurant) => {
+      if (!restaurant) {
+        throw new NotFoundError(
+          "No se encontró ningún restaurante activo asociado a tu cuenta",
+        );
+      }
+      return res.status(200).send({
+        status: "success",
+        data: restaurant,
+        message:
+          "La campaña de descuento por primera compra se configuró con éxito.",
+      });
+    })
+    .catch(next);
+};
